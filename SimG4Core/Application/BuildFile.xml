@@ -22,6 +22,8 @@
 <use name="geant4core"/>
 <use name="hepmc"/>
 <use name="heppdt"/>
+<use name="celeritas"/>
+<use name="cuda"/>
 <export>
   <lib name="1"/>
 </export>

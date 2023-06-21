@@ -9,11 +9,15 @@
 
 #include "MagneticField/Engine/interface/MagneticField.h"
 #include "MagneticField/Records/interface/IdealMagneticFieldRecord.h"
-#include "SimG4Core/Notification/interface/TmpSimEvent.h"
+#include "SimG4Core/Notification/interface/G4SimEvent.h"
 
 #include <memory>
 #include <unordered_map>
 #include <string>
+
+//@@@--->celeritas                                                                                
+#include "accel/SharedParams.hh"
+//@@@<---celeritas   
 
 namespace edm {
   class ParameterSet;
@@ -35,9 +39,7 @@ class RunAction;
 class EventAction;
 class TrackingAction;
 class SteppingAction;
-class Phase2SteppingAction;
 class CMSSteppingVerbose;
-class CMSSimEventManager;
 class G4Field;
 
 class SensitiveTkDetector;
@@ -49,13 +51,21 @@ class SimProducer;
 
 class RunManagerMTWorker {
 public:
+  //@@@--->celeritas                                                                             
+  //!@{                                                                                        
+  //! \name Type aliases                                                                      
+  using SPParams = std::shared_ptr<celeritas::SharedParams>;
+  //!@}                                                                                           
+  //@@@<---celeritas       
+
+public:
   explicit RunManagerMTWorker(const edm::ParameterSet& iConfig, edm::ConsumesCollector&& iC);
   ~RunManagerMTWorker();
 
   void beginRun(const edm::EventSetup&);
   void endRun();
 
-  TmpSimEvent* produce(const edm::Event& inpevt, const edm::EventSetup& es, RunManagerMT& runManagerMaster);
+  G4SimEvent* produce(const edm::Event& inpevt, const edm::EventSetup& es, RunManagerMT& runManagerMaster);
 
   void abortEvent();
   void abortRun(bool softAbort = false);
@@ -64,7 +74,6 @@ public:
   void Connect(EventAction*);
   void Connect(TrackingAction*);
   void Connect(SteppingAction*);
-  void Connect(Phase2SteppingAction*);
 
   SimTrackManager* GetSimTrackManager();
   std::vector<SensitiveTkDetector*>& sensTkDetectors();
@@ -73,12 +82,16 @@ public:
 
   void initializeG4(RunManagerMT* runManagerMaster, const edm::EventSetup& es);
 
-  inline TmpSimEvent* simEvent() { return &m_simEvent; }
+  inline G4SimEvent* simEvent() { return &m_simEvent; }
   inline int getThreadIndex() const { return m_thread_index; }
 
 private:
   void initializeTLS();
-  void initializeUserActions();
+  //@@@--->celeritas
+  //  void initializeUserActions();
+  void initializeUserActions(SPParams params);
+  void DumpRZMagneticField(const G4Field*, const std::string&) const;
+  //@@@<---celeritas
   void initializeRun();
   void terminateRun();
 
@@ -95,13 +108,11 @@ private:
   const MagneticField* m_pMagField{nullptr};
 
   bool m_nonBeam{false};
-  bool m_UseG4EventManager{true};
   bool m_pUseMagneticField{true};
   bool m_hasWatchers{false};
   bool m_LHCTransport{false};
   bool m_dumpMF{false};
   bool m_endOfRun{false};
-  bool m_isPhase2{false};
 
   const int m_thread_index{-1};
 
@@ -119,8 +130,7 @@ private:
   TLSData* m_tls{nullptr};
 
   CustomUIsession* m_UIsession{nullptr};
-  TmpSimEvent m_simEvent;
-  std::unique_ptr<CMSSimEventManager> m_evtManager;
+  G4SimEvent m_simEvent;
   std::unique_ptr<CMSSteppingVerbose> m_sVerbose;
   std::unordered_map<std::string, std::unique_ptr<SensitiveDetectorMakerBase>> m_sdMakers;
 };

@@ -122,6 +122,8 @@ CeleritasSetup::CeleritasSetup()
 
     options_->get_num_streams = []{ return 4; };
 
+    options_->output_file = "celeritas-output.json";
+
     // SensitiveDetector option
     if(write_sd_hits_)
     {

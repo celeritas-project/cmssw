@@ -301,36 +301,10 @@ void RunManagerMT::initG4(const DDCompactView* pDD,
   G4cout << "RunManagerMT: initG4 done " << timer << G4endl;
 
   //@@@--->celeritas
-  // Create the along-step action
   celeritas::CeleritasSetup::Instance()->SetMagFieldZTesla(3.8);
 
-  //Manually insert SD
-  if(celeritas::CeleritasSetup::Instance()->GetSkipMasterSD())
-  {
-    std::multimap<std::string, G4LogicalVolume*> detectors;
-   
-    const G4LogicalVolumeStore* lvs = G4LogicalVolumeStore::GetInstance();
-
-    for(long unsigned int i = 0; i < lvs->size(); ++i)
-    {
-        G4LogicalVolume* lvol = (*lvs)[i];
-        if(lvol->GetName() == "ebalgo:EAPD_01_refl")  
-        {
-	    //TODO check all sensitive volume from a catalog
-	    CELER_LOG(debug) << "@@@===> Mannually insert SD for " << lvol->GetName();
-            detectors.insert({"EcalHitsEB", lvol});
-	}
-    }
-
-    // Since the worker threads don't create SDs, we have to add them
-    // ourselves.
-    auto& sd = celeritas::CeleritasSetup::Instance()->GetSDSetupOptions();
-
-    for (auto& [_, lv] : detectors)
-      {
-	sd.force_volumes.insert(lv);
-      }
-  }
+  //Manually set SD to logical volumes
+  celeritas::CeleritasSetup::Instance()->SetSDFromMaster();
 
   // Initialize shared data and setup GPU on all threads
   celeritas::ExceptionConverter call_g4exception{"celer0001"};

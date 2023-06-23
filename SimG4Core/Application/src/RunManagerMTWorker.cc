@@ -416,16 +416,6 @@ void RunManagerMTWorker::initializeG4(RunManagerMT* runManagerMaster, const edm:
   gdml_parser.SetEnergyCutsExport(true);
   gdml_parser.SetSDExport(true);
   gdml_parser.Write("./cms-geom.gdml", worldPV->GetLogicalVolume(), true);
-
-  const G4LogicalVolumeStore* lvs = G4LogicalVolumeStore::GetInstance();
-  CELER_LOG(debug) << "@@@===> Number of Logical Volumes " << lvs->size();
-  for(long unsigned int i = 0; i < lvs->size(); ++i)
-  {
-      G4LogicalVolume* lvol = (*lvs)[i];
-      if(lvol->GetSensitiveDetector() != nullptr)
-        CELER_LOG(debug) << "@@@===> LV SD Name " 
-                        << lvol->GetName() << " " << lvol->GetSensitiveDetector()->GetName();
-  }
   */
 
   //Initialize device

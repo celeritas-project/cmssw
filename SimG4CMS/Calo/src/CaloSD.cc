@@ -199,6 +199,9 @@ G4bool CaloSD::ProcessHits(G4Step* aStep, G4TouchableHistory*) {
 
   // check unitID
   unsigned int unitID = setDetUnitId(aStep);
+
+  //<---celeritas: temporary 
+  /*
   auto const theTrack = aStep->GetTrack();
   uint16_t depth = getDepth(aStep);
 
@@ -218,11 +221,16 @@ G4bool CaloSD::ProcessHits(G4Step* aStep, G4TouchableHistory*) {
     }
     return false;
   }
+  */
+  //--->celeritas: temporary 
+
   double energy = getEnergyDeposit(aStep);
   if (energy <= 0.0) {
     return false;
   }
 
+  /*
+  //--->celeritas: temporary 
   if (doFineCaloThisStep_) {
     currentID.setID(unitID, time, findBoundaryCrossingParent(theTrack), depth);
     currentID.markAsFinecaloTrackID();
@@ -250,6 +258,9 @@ G4bool CaloSD::ProcessHits(G4Step* aStep, G4TouchableHistory*) {
     edm::LogVerbatim("DoFineCalo") << "Not creating new hit, only updating " << shortreprID(currentHit);
 #endif
   }
+  */
+  //--->celeritas: temporary 
+
   return true;
 }
 

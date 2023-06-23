@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <fstream>
 //#include <string>
 #include <type_traits>
 #include <CLHEP/Units/SystemOfUnits.h>
@@ -52,6 +53,24 @@ class CeleritasSetup
     void SetMagFieldZTesla(double f)
     {
         field_ = G4ThreeVector(0, 0, f * CLHEP::tesla);
+    }
+
+    //! Set sensitive detectors manually with a known list
+    void SetSDFromMaster()
+    {
+        options_->sd.force_volumes = celeritas::FindVolumes([] {
+	    // TODO: read input file name from configuration
+	    std::ifstream input("calor-sd-ecal.list");
+	    std::string line;
+	    std::unordered_set<std::string> vol_names;
+
+	    while (std::getline(input, line))
+	    {
+	        vol_names.insert(std::move(line));
+	    }
+
+	    return vol_names;
+	}());
     }
 
   private:

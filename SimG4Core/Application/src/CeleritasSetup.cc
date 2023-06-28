@@ -114,9 +114,9 @@ CeleritasSetup::CeleritasSetup()
     */
     // Use a RZ map dumped from CMSSW
     options_->make_along_step
-        = celeritas::RZMapFieldAlongStepFactory([] {  
+        = celeritas::RZMapFieldAlongStepFactory([] {
 	      std::string filename = "cms-run3-rzfieldmap.json";
-	      celeritas::RZMapFieldInput inp; 
+	      celeritas::RZMapFieldInput inp;
 	      std::ifstream(filename) >> inp;
 	      return inp; } );
 
@@ -127,17 +127,18 @@ CeleritasSetup::CeleritasSetup()
     // SensitiveDetector option
     if(write_sd_hits_)
     {
-        celeritas::SDSetupOptions sd;
         celeritas::SDSetupOptions::StepPoint sp;
 
         sp.global_time = true;
         sp.position = true;
+        sp.direction = true;
         sp.kinetic_energy = true;
 
-        sd.pre.position = true;
-        sd.locate_touchable = true;
-
+        celeritas::SDSetupOptions sd;
+        sd.pre = sp;
         sd.post = sp;
+        sd.track = true;
+        sd.locate_touchable = true;
         sd.enabled = true;
 
         options_->sd = sd;

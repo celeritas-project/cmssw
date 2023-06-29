@@ -30,7 +30,7 @@ TrackWithHistory::TrackWithHistory(const G4Track* g4trk) {
   properTime_ = g4trk->GetProperTime();
   creatorProcess_ = g4trk->GetCreatorProcess();
   TrackInformation* trkinfo = static_cast<TrackInformation*>(g4trk->GetUserInformation());
-  storeTrack_ = trkinfo->storeTrack();
+  storeTrack_ = trkinfo ? trkinfo->storeTrack() : true;
   auto vgprimary = g4trk->GetDynamicParticle()->GetPrimaryParticle();
   if (vgprimary != nullptr) {
     auto priminfo = static_cast<GenParticleInfo*>(vgprimary->GetUserInformation());

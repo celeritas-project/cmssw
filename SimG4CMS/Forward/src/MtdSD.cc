@@ -99,9 +99,8 @@ void MtdSD::getBaseNumber(const G4Step* aStep) {
 
 int MtdSD::getTrackID(const G4Track* aTrack) {
   int theID = aTrack->GetTrackID();
-  TrackInformation* trkInfo = cmsTrackInformation(aTrack);
-  const G4String& rname = aTrack->GetVolume()->GetLogicalVolume()->GetRegion()->GetName();
-  if (trkInfo != nullptr) {
+  if (TrackInformation* trkInfo = optionalCmsTrackInformation(aTrack)) {
+    const G4String& rname = aTrack->GetVolume()->GetLogicalVolume()->GetRegion()->GetName();
 #ifdef EDM_ML_DEBUG
     trkInfo->Print();
 #endif

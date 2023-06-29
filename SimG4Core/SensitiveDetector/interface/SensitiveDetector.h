@@ -51,6 +51,7 @@ protected:
   void NaNTrap(const G4Step* step) const;
 
   TrackInformation* cmsTrackInformation(const G4Track* aTrack);
+  TrackInformation* optionalCmsTrackInformation(const G4Track* aTrack);
 
 private:
   void AssignSD(const std::string& vname);

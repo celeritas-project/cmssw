@@ -152,14 +152,18 @@ void TimingSD::getStepInfo(const G4Step* aStep) {
     theTrack = newTrack;
     TrackInformation* info = nullptr;
     if (incidentEnergy > energyCut) {
-      info = cmsTrackInformation(theTrack);
-      info->setStoreTrack();
+      info = optionalCmsTrackInformation(theTrack);
+      if (info) {
+        info->setStoreTrack();
+      }
     }
     if (incidentEnergy > energyHistoryCut) {
       if (nullptr == info) {
-        info = cmsTrackInformation(theTrack);
+        info = optionalCmsTrackInformation(theTrack);
       }
-      info->putInHistory();
+      if (info) {
+        info->putInHistory();
+      }
     }
 #ifdef EDM_ML_DEBUG
     if (info != nullptr) {

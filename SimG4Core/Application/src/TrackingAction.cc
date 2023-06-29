@@ -16,7 +16,6 @@
 
 //#define EDM_ML_DEBUG
 
-//@@@--->celeritas
 #include "SimG4Core/Application/interface/RunAction.h"
 #include <G4Electron.hh>
 #include <G4Gamma.hh>
@@ -27,20 +26,17 @@
 #include "corecel/Assert.hh"
 #include "corecel/Macros.hh"
 #include "accel/ExceptionConverter.hh"
-//@@@<---celeritas
 
-
-TrackingAction::TrackingAction(EventAction* e, const edm::ParameterSet& p, CMSSteppingVerbose* sv,
-			       SPConstParams params, SPTransporter transporter)
+TrackingAction::TrackingAction(
+    EventAction* e, const edm::ParameterSet& p, CMSSteppingVerbose* sv, SPConstParams params, SPTransporter transporter)
     : eventAction_(e),
       steppingVerbose_(sv),
       checkTrack_(p.getUntrackedParameter<bool>("CheckTrack", false)),
       doFineCalo_(p.getParameter<bool>("DoFineCalo")),
       saveCaloBoundaryInformation_(p.getParameter<bool>("SaveCaloBoundaryInformation")),
       eMinFine_(p.getParameter<double>("EminFineTrack") * CLHEP::MeV),
-      celeritasParams_(std::move(params)), 
-      celeritasTransporter_(std::move(transporter)) 
-{
+      celeritasParams_(std::move(params)),
+      celeritasTransporter_(std::move(transporter)) {
   if (!doFineCalo_) {
     eMinFine_ = DBL_MAX;
   }
@@ -51,24 +47,15 @@ TrackingAction::TrackingAction(EventAction* e, const edm::ParameterSet& p, CMSSt
 TrackingAction::~TrackingAction() {}
 
 void TrackingAction::PreUserTrackingAction(const G4Track* aTrack) {
-
-  //@@@--->celeritas
   G4ParticleDefinition* ptype = aTrack->GetDefinition();
-  if(ptype == G4Gamma::Gamma() || ptype == G4Electron::Electron() 
-     || ptype == G4Positron::Positron()) 
-    {
-      is_EM_ = true;
-      //@@@celeritas
-      // Celeritas is transporting this track (need mutex?)
-      celeritas::ExceptionConverter call_g4exception{"celer0003"};
-      CELER_TRY_HANDLE(celeritasTransporter_->Push(*aTrack), call_g4exception);
-      const_cast<G4Track*>(aTrack)->SetTrackStatus(fStopAndKill);
-    }
-  else
-    {
-      is_EM_ = false;
-      //@@@--->celeritas 
-
+  is_EM_ = (ptype == G4Gamma::Gamma() || ptype == G4Electron::Electron() || ptype == G4Positron::Positron());
+  if (is_EM_) {
+    // Celeritas is transporting this track
+    celeritas::ExceptionConverter call_g4exception{"celer0003"};
+    CELER_TRY_HANDLE(celeritasTransporter_->Push(*aTrack), call_g4exception);
+    const_cast<G4Track*>(aTrack)->SetTrackStatus(fStopAndKill);
+    return;
+  }
   g4Track_ = aTrack;
   currentTrack_ = new TrackWithHistory(aTrack);
 
@@ -104,18 +91,12 @@ void TrackingAction::PreUserTrackingAction(const G4Track* aTrack) {
     // so that it can potentially be saved later.
     trkInfo_->putInHistory();
   }
-
-  //@@@<---celeritas 
-  }
-
 }
 
 void TrackingAction::PostUserTrackingAction(const G4Track* aTrack) {
-
-  //@@@--->celeritas 
   //if track is offloaded killed, then do nothing
-   if(is_EM_) return;
-  //@@@<---celeritas 
+  if (is_EM_)
+    return;
 
   int id = aTrack->GetTrackID();
   const auto& ppos = aTrack->GetStep()->GetPostStepPoint()->GetPosition();

@@ -6,6 +6,11 @@
 
 #include "G4UserTrackingAction.hh"
 
+//@@@celeritas 
+#include "accel/LocalTransporter.hh"
+#include "accel/SharedParams.hh"
+//@@@celeritas 
+
 class EventAction;
 class TrackWithHistory;
 class BeginOfTrack;
@@ -14,8 +19,14 @@ class CMSSteppingVerbose;
 class TrackInformation;
 
 class TrackingAction : public G4UserTrackingAction {
+  //!@{
+  //! \name Type aliases
+  using SPConstParams = std::shared_ptr<const celeritas::SharedParams>;
+  using SPTransporter = std::shared_ptr<celeritas::LocalTransporter>;
+  //!@}
 public:
-  explicit TrackingAction(EventAction* ea, const edm::ParameterSet& ps, CMSSteppingVerbose*);
+  explicit TrackingAction(EventAction* ea, const edm::ParameterSet& ps, CMSSteppingVerbose*,
+			  SPConstParams params, SPTransporter transporter);
   ~TrackingAction() override;
 
   void PreUserTrackingAction(const G4Track* aTrack) override;
@@ -38,6 +49,12 @@ private:
   bool doFineCalo_;
   bool saveCaloBoundaryInformation_;
   double eMinFine_;
+
+  //@@@celeritas 
+  bool is_EM_;
+  SPConstParams celeritasParams_;
+  SPTransporter celeritasTransporter_;
+  //@@@celeritas 
 };
 
 #endif

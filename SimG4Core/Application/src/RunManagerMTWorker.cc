@@ -55,6 +55,19 @@
 #include "G4FieldManager.hh"
 #include "G4ScoringManager.hh"
 
+//--->celeritas
+#include "G4LogicalVolumeStore.hh"
+#include "SimG4Core/Application/interface/GXGDMLParser.hh"
+
+#include "SimG4Core/Application/interface/CeleritasSetup.hh"
+#include "celeritas_config.h"
+#include "corecel/Assert.hh"
+#include "corecel/Macros.hh"
+#include "corecel/io/Logger.hh"
+#include "accel/ExceptionConverter.hh"
+#include "accel/LocalTransporter.hh"
+//<---celeritas
+
 #include <atomic>
 #include <memory>
 
@@ -113,6 +126,7 @@ namespace {
 struct RunManagerMTWorker::TLSData {
   std::unique_ptr<G4RunManagerKernel> kernel;  //must be deleted last
   std::unique_ptr<RunAction> userRunAction;
+  std::shared_ptr<celeritas::LocalTransporter> celeritasTransporter;
   std::unique_ptr<SimRunInterface> runInterface;
   std::unique_ptr<SimActivityRegistry> registry;
   std::unique_ptr<SimTrackManager> trackManager;
@@ -215,6 +229,18 @@ void RunManagerMTWorker::endRun() {
   int id = getThreadIndex();
   edm::LogVerbatim("SimG4CoreApplication") << "RunManagerMTWorker::endRun for the thread " << id;
   terminateRun();
+
+  //@@@--->celeritas
+  CELER_LOG_LOCAL(status) << "Finalizing Celeritas";
+  celeritas::ExceptionConverter call_g4exception{"celer0005"};
+  if (m_tls->celeritasTransporter)
+    {
+      // Deallocate Celeritas state data (ensures that objects are deleted on
+      // the thread in which they're created, necessary by some geant4
+      // thread-local allocators)
+      CELER_TRY_HANDLE(m_tls->celeritasTransporter->Finalize(), call_g4exception);
+    }
+  //@@@<---celeritas
 }
 
 void RunManagerMTWorker::initializeTLS() {
@@ -224,6 +250,10 @@ void RunManagerMTWorker::initializeTLS() {
 
   m_tls = new TLSData();
   m_tls->registry = std::make_unique<SimActivityRegistry>();
+
+  //@@@--->celeritas
+  m_tls->celeritasTransporter = std::make_shared<celeritas::LocalTransporter>();
+  //@@@--->celeritas
 
   edm::Service<SimActivityRegistry> otherRegistry;
   //Look for an outside SimActivityRegistry
@@ -312,7 +342,10 @@ void RunManagerMTWorker::initializeG4(RunManagerMT* runManagerMaster, const edm:
       if (m_dumpMF) {
         edm::LogVerbatim("SimG4CoreApplication")
             << "RunManagerMTWorker::InitializeG4: Dump magnetic field to file " << fieldFile;
-        DumpMagneticField(tM->GetFieldManager()->GetDetectorField(), fieldFile);
+        //@@@--->celeritas
+	//        DumpMagneticField(tM->GetFieldManager()->GetDetectorField(), fieldFile);
+        DumpRZMagneticField(tM->GetFieldManager()->GetDetectorField(), fieldFile);
+        //@@@--->celeritas
       }
     }
   }
@@ -372,7 +405,50 @@ void RunManagerMTWorker::initializeG4(RunManagerMT* runManagerMaster, const edm:
   if (sv > 0) {
     m_sVerbose = std::make_unique<CMSSteppingVerbose>(sv, elim, ve, vn, vt);
   }
-  initializeUserActions();
+
+  //@@@--->celeritas
+  // Dump Geometry with auxtype="SensDet"
+  /*
+  GXGDMLParser gdml_parser;
+  gdml_parser.StripNamePointers();
+  gdml_parser.SetStripFlag(true);
+  gdml_parser.SetRegionExport(true);
+  gdml_parser.SetEnergyCutsExport(true);
+  gdml_parser.SetSDExport(true);
+  gdml_parser.Write("./cms-geom.gdml", worldPV->GetLogicalVolume(), true);
+
+  const G4LogicalVolumeStore* lvs = G4LogicalVolumeStore::GetInstance();
+  CELER_LOG(debug) << "@@@===> Number of Logical Volumes " << lvs->size();
+  for(long unsigned int i = 0; i < lvs->size(); ++i)
+  {
+      G4LogicalVolume* lvol = (*lvs)[i];
+      if(lvol->GetSensitiveDetector() != nullptr)
+        CELER_LOG(debug) << "@@@===> LV SD Name " 
+                        << lvol->GetName() << " " << lvol->GetSensitiveDetector()->GetName();
+  }
+  */
+
+  //Initialize device
+  CELER_LOG(info) << "@@@===> Initialize SharedParams::InitializeWorker @RunManagerMTWorker::initG4";
+  celeritas::ExceptionConverter call_g4exception_002{"celer0002"};
+  std::shared_ptr<const celeritas::SetupOptions> options 
+    = celeritas::CeleritasSetup::Instance()->GetSetupOptions();
+
+  std::shared_ptr<celeritas::SharedParams> params
+    = runManagerMaster->GetSharedParams(); 
+
+  celeritas::ExceptionConverter call_g4exception2{"celer0002"};
+  CELER_TRY_HANDLE(celeritas::SharedParams::InitializeWorker(*options),
+                   call_g4exception2);
+  // Allocate data in shared thread-local transporter
+  CELER_LOG(info) << "@@@===> Initialize Transport @RunManagerMTWorker::initG4";
+  CELER_TRY_HANDLE(m_tls->celeritasTransporter->Initialize(*options, *params),
+                   call_g4exception_002);
+  CELER_ENSURE(m_tls->celeritasTransporter);
+  //@@@<---celeritas
+
+  //  initializeUserActions();
+  initializeUserActions(params);
 
   G4StateManager::GetStateManager()->SetNewState(G4State_Idle);
 
@@ -380,9 +456,10 @@ void RunManagerMTWorker::initializeG4(RunManagerMT* runManagerMaster, const edm:
   edm::LogVerbatim("SimG4CoreApplication")
       << "RunManagerMTWorker::initializeG4 done for the thread " << thisID << "  " << timer;
   m_tls->threadInitialized = true;
+
 }
 
-void RunManagerMTWorker::initializeUserActions() {
+void RunManagerMTWorker::initializeUserActions(SPParams params) {
   m_tls->runInterface = std::make_unique<SimRunInterface>(this, false);
   m_tls->userRunAction = std::make_unique<RunAction>(m_pRunAction, m_tls->runInterface.get(), false);
   m_tls->userRunAction->SetMaster(false);
@@ -392,12 +469,17 @@ void RunManagerMTWorker::initializeUserActions() {
   G4EventManager* eventManager = m_tls->kernel->GetEventManager();
   eventManager->SetVerboseLevel(ver);
 
+  //@@@--->celeritas: added transporter in EventAction
   EventAction* userEventAction =
-      new EventAction(m_pEventAction, m_tls->runInterface.get(), m_tls->trackManager.get(), m_sVerbose.get());
+      new EventAction(m_pEventAction, m_tls->runInterface.get(), m_tls->trackManager.get(), m_sVerbose.get(),
+                      m_tls->celeritasTransporter);
   Connect(userEventAction);
   eventManager->SetUserAction(userEventAction);
 
-  TrackingAction* userTrackingAction = new TrackingAction(userEventAction, m_pTrackingAction, m_sVerbose.get());
+  //@@@--->celeritas: added transporter and SharedParams in TrackingAction
+  TrackingAction* userTrackingAction = 
+      new TrackingAction(userEventAction, m_pTrackingAction, m_sVerbose.get(),
+                         params, m_tls->celeritasTransporter);
   Connect(userTrackingAction);
   eventManager->SetUserAction(userTrackingAction);
 
@@ -659,3 +741,89 @@ void RunManagerMTWorker::DumpMagneticField(const G4Field* field, const std::stri
     fout.close();
   }
 }
+
+//@@@--->celeritas 
+void RunManagerMTWorker::DumpRZMagneticField(const G4Field* field, const std::string& file) const {
+  std::ofstream fout(file.c_str(), std::ios::out);
+  if (fout.fail()) {
+    edm::LogWarning("SimG4CoreApplication")
+      << "MTWorker::DumpMagneticField: error opening file <" << file << "> for magnetic field";
+  } else {
+    // CMS magnetic field volume for the EM shower (only EM and HCAL regions)
+
+    double rmax = 3000 * mm; // the end of HCal Barrel
+    double zmax = 6000 * mm; // the end of HCal Endcap
+
+    double dr = 1 * cm;
+    double dz = 5 * cm;
+
+    int nr = (int)(rmax / dr);
+    int nz = 2 * (int)(zmax / dz);
+
+    double r = 0.0;
+    double z0 = -zmax;
+    double z;
+
+    double point[4] = {0.0, 0.0, 0.0, 0.0};
+    double bfield[3] = {0.0, 0.0, 0.0};
+    //celeritas json RZMapFieldInput json format
+    fout << "{" << std::endl;
+    fout << "\"num_grid_z\": " <<  nz+1 << "," << std::endl;
+    fout << "\"num_grid_r\": " <<  nr+1 << "," << std::endl;
+    fout << "\"min_z\": " <<  -zmax/cm  << "," << std::endl;
+    fout << "\"max_z\": " <<  zmax/cm   << "," << std::endl;
+    fout << "\"min_r\": " <<  0.0       << "," << std::endl;
+    fout << "\"max_r\": " <<  rmax/cm   << "," << std::endl;
+    fout << "\"field_r\": [" << std::endl;
+
+    fout << std::setprecision(6);
+    z = z0;
+    for (int i = 0; i <= nz; ++i) {
+      r = 0;
+      for (int j = 0; j <= nr; ++j) {
+        point[0] = r;
+        point[1] = 0;
+        point[2] = z;
+        field->GetFieldValue(point, bfield);
+        if(i == nz && j == nr) {
+          fout << std::sqrt(bfield[0] * bfield[0] + bfield[1] * bfield[1]) / tesla
+             << G4endl;
+        }
+        else {
+          fout << std::sqrt(bfield[0] * bfield[0] + bfield[1] * bfield[1]) / tesla
+             << "," << G4endl;
+        }
+
+        r += dr;
+      }
+      z += dz;
+    }
+
+    fout << "]," << std::endl;
+    fout << "\"field_z\": [" << std::endl;
+
+    z = z0;
+    for (int i = 0; i <= nz; ++i) {
+      r = 0;
+      for (int j = 0; j <= nr; ++j) {
+        point[0] = r;
+        point[1] = 0;
+        point[2] = z;
+        field->GetFieldValue(point, bfield);
+        if(i == nz && j == nr) {
+          fout << bfield[2] / tesla << G4endl;
+        }
+        else {
+          fout << bfield[2] / tesla << "," << G4endl;
+        }
+        r += dr;
+      }
+      z += dz;
+    }
+    fout << "]" << std::endl;
+    fout << "}" << std::endl;
+
+    fout.close();
+  }
+}
+//@@@<---celeritas

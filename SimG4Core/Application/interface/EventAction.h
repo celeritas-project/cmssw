@@ -15,14 +15,25 @@
 #include <map>
 #include <string>
 
+//@@@celeritas 
+#include "accel/LocalTransporter.hh"
+//@@@celeritas 
+
 class SimRunInterface;
 class BeginOfEvent;
 class EndOfEvent;
 class CMSSteppingVerbose;
 
 class EventAction : public G4UserEventAction {
+ public:
+  //@@@celeritas
+  //!@{
+  //! \name Type aliases
+  using SPTransporter = std::shared_ptr<celeritas::LocalTransporter>;
+  //!@}
+  //@@@celeritas
 public:
-  explicit EventAction(const edm::ParameterSet& ps, SimRunInterface*, SimTrackManager*, CMSSteppingVerbose*);
+  explicit EventAction(const edm::ParameterSet& ps, SimRunInterface*, SimTrackManager*, CMSSteppingVerbose*, SPTransporter transporter);
   ~EventAction() override;
 
   void BeginOfEventAction(const G4Event* evt) override;
@@ -53,6 +64,10 @@ private:
   std::string m_stopFile;
   bool m_printRandom;
   bool m_debug;
+
+  //@@@celeritas
+  SPTransporter m_celeritasTransporter;
+  //@@@celeritas
 };
 
 #endif

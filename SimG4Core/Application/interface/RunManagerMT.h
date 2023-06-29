@@ -10,6 +10,11 @@
 
 #include <memory>
 
+//@@@--->celeritas
+#include "accel/SetupOptions.hh"
+#include "accel/SharedParams.hh"
+//@@@<---celeritas
+
 class PrimaryTransformer;
 class Generator;
 class PhysicsList;
@@ -51,6 +56,15 @@ class RunManagerMTWorker;
 class RunManagerMT {
   friend class RunManagerMTWorker;
 
+  //@@@--->celeritas
+public:
+  //!@{
+  //! \name Type aliases
+  using SPConstOptions = std::shared_ptr<const celeritas::SetupOptions>;
+  using SPParams = std::shared_ptr<celeritas::SharedParams>;
+  //!@}
+  //@@@<---celeritas
+
 public:
   explicit RunManagerMT(edm::ParameterSet const&);
   ~RunManagerMT();
@@ -76,6 +90,10 @@ public:
   // In order to share the physics list with the worker threads, we
   // need a non-const pointer. Thread-safety is handled inside Geant4.
   inline PhysicsList* physicsListForWorker() const { return m_physicsList.get(); }
+
+  //@@@--->celeritas
+  inline  std::shared_ptr<celeritas::SharedParams> GetSharedParams() { return params_; }
+  //@@@<---celeritas
 
 private:
   void terminateRun();
@@ -109,6 +127,11 @@ private:
   std::unique_ptr<DDDWorld> m_world;
   SimActivityRegistry m_registry;
   SensitiveDetectorCatalog m_catalog;
+
+  //@@@--->celeritas
+  SPConstOptions options_;
+  SPParams       params_;
+  //@@@<---celeritas
 };
 
 #endif

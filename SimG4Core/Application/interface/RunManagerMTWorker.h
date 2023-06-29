@@ -15,6 +15,10 @@
 #include <unordered_map>
 #include <string>
 
+//@@@--->celeritas                                                                                
+#include "accel/SharedParams.hh"
+//@@@<---celeritas   
+
 namespace edm {
   class ParameterSet;
   class Event;
@@ -47,6 +51,14 @@ class SimProducer;
 
 class RunManagerMTWorker {
 public:
+  //@@@--->celeritas                                                                             
+  //!@{                                                                                        
+  //! \name Type aliases                                                                      
+  using SPParams = std::shared_ptr<celeritas::SharedParams>;
+  //!@}                                                                                           
+  //@@@<---celeritas       
+
+public:
   explicit RunManagerMTWorker(const edm::ParameterSet& iConfig, edm::ConsumesCollector&& iC);
   ~RunManagerMTWorker();
 
@@ -75,7 +87,11 @@ public:
 
 private:
   void initializeTLS();
-  void initializeUserActions();
+  //@@@--->celeritas
+  //  void initializeUserActions();
+  void initializeUserActions(SPParams params);
+  void DumpRZMagneticField(const G4Field*, const std::string&) const;
+  //@@@<---celeritas
   void initializeRun();
   void terminateRun();
 

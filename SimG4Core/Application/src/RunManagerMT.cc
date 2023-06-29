@@ -65,6 +65,17 @@
 #include "FWCore/MessageLogger/interface/MessageLogger.h"
 #include "FWCore/Utilities/interface/Exception.h"
 
+//@@@--->celeritas
+#include <G4Version.hh>
+
+#include "SimG4Core/Application/interface/CeleritasSetup.hh"
+#include "corecel/io/Logger.hh"
+#include "celeritas_config.h"
+#include "corecel/Assert.hh"
+#include "corecel/Macros.hh"
+#include "accel/ExceptionConverter.hh"
+//@@@<---celeritas
+
 RunManagerMT::RunManagerMT(edm::ParameterSet const& p)
     : m_managerInitialized(false),
       m_runTerminated(false),
@@ -91,6 +102,23 @@ RunManagerMT::RunManagerMT(edm::ParameterSet const& p)
   bool tr = p.getParameter<bool>("TraceExceptions");
   m_stateManager->SetExceptionHandler(new ExceptionHandler(th, tr));
   m_check = p.getUntrackedParameter<bool>("CheckGeometry", false);
+
+  //@@@--->celeritas
+  CELER_LOG(info) << "@@@===> Creating CeleritasSetup @RunManagerMT::RunManagerMT()";
+  std::vector<std::string> ignore_processes = {"CoulombScat"};
+  if (G4VERSION_NUMBER >= 1110)
+    {
+      CELER_LOG(warning) << "Default Rayleigh scattering 'MinKinEnergyPrim' "
+                              "is not compatible between Celeritas and "
+	"Geant4@11.1: disabling Rayleigh scattering";
+      ignore_processes.push_back("Rayl");
+    }
+  celeritas::CeleritasSetup::Instance()->SetIgnoreProcesses(ignore_processes);
+  options_ = celeritas::CeleritasSetup::Instance()->GetSetupOptions();
+
+  CELER_LOG(info) << "@@@===> Creating default SharedParams @RunManagerMT::RunManagerMT()";
+  params_  = std::make_shared<celeritas::SharedParams>();
+  //@@@<---celeritas
 }
 
 RunManagerMT::~RunManagerMT() { delete m_UIsession; }
@@ -271,6 +299,45 @@ void RunManagerMT::initG4(const DDCompactView* pDD,
   timer.Stop();
   G4cout.precision(4);
   G4cout << "RunManagerMT: initG4 done " << timer << G4endl;
+
+  //@@@--->celeritas
+  // Create the along-step action
+  celeritas::CeleritasSetup::Instance()->SetMagFieldZTesla(3.8);
+
+  //Manually insert SD
+  if(celeritas::CeleritasSetup::Instance()->GetSkipMasterSD())
+  {
+    std::multimap<std::string, G4LogicalVolume*> detectors;
+   
+    const G4LogicalVolumeStore* lvs = G4LogicalVolumeStore::GetInstance();
+
+    for(long unsigned int i = 0; i < lvs->size(); ++i)
+    {
+        G4LogicalVolume* lvol = (*lvs)[i];
+        if(lvol->GetName() == "ebalgo:EAPD_01_refl")  
+        {
+	    //TODO check all sensitive volume from a catalog
+	    CELER_LOG(debug) << "@@@===> Mannually insert SD for " << lvol->GetName();
+            detectors.insert({"EcalHitsEB", lvol});
+	}
+    }
+
+    // Since the worker threads don't create SDs, we have to add them
+    // ourselves.
+    auto& sd = celeritas::CeleritasSetup::Instance()->GetSDSetupOptions();
+
+    for (auto& [_, lv] : detectors)
+      {
+	sd.force_volumes.insert(lv);
+      }
+  }
+
+  // Initialize shared data and setup GPU on all threads
+  celeritas::ExceptionConverter call_g4exception{"celer0001"};
+  CELER_LOG(info) << "@@@===> Initialize SharedParams @RunManagerMT::initG4";
+  CELER_TRY_HANDLE(params_->Initialize(*options_), call_g4exception);
+  CELER_ASSERT(*params_);
+  //@@@<---celeritas
 }
 
 void RunManagerMT::initializeUserActions() {
@@ -306,6 +373,13 @@ void RunManagerMT::terminateRun() {
   }
   m_runTerminated = true;
   edm::LogVerbatim("SimG4CoreApplication") << "RunManagerMT::terminateRun done";
+
+  //@@@--->celeritas
+  celeritas::ExceptionConverter call_g4exception{"celer0005"};
+  CELER_LOG(info) << "@@@===> Deleting SharedParams @RunManagerMT::terminateRun";
+  // Clear shared data and write
+  CELER_TRY_HANDLE(params_->Finalize(), call_g4exception);
+  //@@@--->celeritas
 }
 
 void RunManagerMT::checkVoxels() {

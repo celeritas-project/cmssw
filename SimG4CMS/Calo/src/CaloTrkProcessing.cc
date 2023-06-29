@@ -177,7 +177,7 @@ void CaloTrkProcessing::update(const G4Step* aStep) {
 
   TrackInformation* trkInfo = dynamic_cast<TrackInformation*>(theTrack->GetUserInformation());
 
-  if (trkInfo == nullptr) {
+  if (trkInfo == nullptr && (doFineCalo_ || testBeam_ || putHistory_)) {
     edm::LogError("CaloSim") << "CaloTrkProcessing: No trk info !!!! abort ";
     throw cms::Exception("Unknown", "CaloTrkProcessing") << "cannot get trkInfo for Track " << id << "\n";
   }
@@ -260,7 +260,7 @@ void CaloTrkProcessing::update(const G4Step* aStep) {
       if (theTrack->GetKineticEnergy() / CLHEP::MeV > eMin_)
         trkInfo->putInHistory();
     }
-  } else {
+  } else if (trkInfo) {
     if (putHistory_) {
       trkInfo->putInHistory();
       //      trkInfo->setAncestor();

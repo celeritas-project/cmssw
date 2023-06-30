@@ -595,7 +595,6 @@ CaloG4Hit* CaloSD::createNewHit(const G4Step* aStep, const G4Track* theTrack) {
   updateHit(aHit);
 
   storeHit(aHit);
-  TrackInformation* trkInfo = cmsTrackInformation(theTrack);
 
 #ifdef EDM_ML_DEBUG
   if (doFineCaloThisStep_)
@@ -616,8 +615,10 @@ CaloG4Hit* CaloSD::createNewHit(const G4Step* aStep, const G4Track* theTrack) {
                                   << " save: " << (etrack >= energyCut || forceSave);
 #endif
       if (etrack >= energyCut || forceSave) {
-        trkInfo->storeTrack(true);
-        trkInfo->putInHistory();
+        if (TrackInformation* trkInfo = optionalCmsTrackInformation(theTrack)) {
+          trkInfo->storeTrack(true);
+          trkInfo->putInHistory();
+        }
       }
     } else {
       TrackWithHistory* trkh = tkMap[currentID.trackID()];
@@ -700,10 +701,10 @@ void CaloSD::update(const BeginOfEvent* g4Event) {
 
 void CaloSD::update(const EndOfTrack* trk) {
   int id = (*trk)()->GetTrackID();
-  TrackInformation* trkI = cmsTrackInformation((*trk)());
   int lastTrackID = -1;
-  if (trkI)
+  if (TrackInformation* trkI = optionalCmsTrackInformation((*trk)())) {
     lastTrackID = trkI->getIDonCaloSurface();
+  }
   if (id == lastTrackID) {
     const TrackContainer* trksForThisEvent = m_trackManager->trackContainer();
     if (trksForThisEvent != nullptr) {
@@ -810,8 +811,7 @@ void CaloSD::endEvent() {}
 
 int CaloSD::getTrackID(const G4Track* aTrack) {
   int primaryID = 0;
-  TrackInformation* trkInfo = cmsTrackInformation(aTrack);
-  if (trkInfo) {
+  if (TrackInformation* trkInfo = optionalCmsTrackInformation(aTrack)) {
     primaryID = trkInfo->getIDonCaloSurface();
 #ifdef EDM_ML_DEBUG
     edm::LogVerbatim("CaloSim") << "Track ID: " << trkInfo->getIDonCaloSurface() << ":" << aTrack->GetTrackID() << ":"
@@ -828,8 +828,10 @@ int CaloSD::getTrackID(const G4Track* aTrack) {
 
 int CaloSD::setTrackID(const G4Step* aStep) {
   auto const theTrack = aStep->GetTrack();
-  TrackInformation* trkInfo = cmsTrackInformation(theTrack);
-  int primaryID = trkInfo->getIDonCaloSurface();
+  int primaryID = 0;
+  if (TrackInformation* trkInfo = optionalCmsTrackInformation(theTrack)) {
+    primaryID = trkInfo->getIDonCaloSurface();
+  }
   if (primaryID <= 0) {
     primaryID = theTrack->GetTrackID();
   }
@@ -864,8 +866,9 @@ bool CaloSD::filterHit(CaloG4Hit* hit, double time) {
 double CaloSD::getResponseWt(const G4Track* aTrack) {
   double wt = 1.0;
   if (meanResponse.get()) {
-    TrackInformation* trkInfo = cmsTrackInformation(aTrack);
-    wt = meanResponse.get()->getWeight(trkInfo->genParticlePID(), trkInfo->genParticleP());
+    if (TrackInformation* trkInfo = optionalCmsTrackInformation(aTrack)) {
+      wt = meanResponse.get()->getWeight(trkInfo->genParticlePID(), trkInfo->genParticleP());
+    }
   }
   return wt;
 }
@@ -947,9 +950,11 @@ bool CaloSD::saveHit(CaloG4Hit* aHit) {
 
 void CaloSD::update(const BeginOfTrack* trk) {
   int primary = -1;
-  TrackInformation* trkInfo = cmsTrackInformation((*trk)());
-  if (trkInfo->isPrimary())
-    primary = (*trk)()->GetTrackID();
+  if (TrackInformation* trkInfo = optionalCmsTrackInformation((*trk)())) {
+    if (trkInfo->isPrimary()) {
+      primary = (*trk)()->GetTrackID();
+    }
+  }
 
 #ifdef EDM_ML_DEBUG
   edm::LogVerbatim("CaloSim") << "New track: isPrimary " << trkInfo->isPrimary() << " primary ID = " << primary

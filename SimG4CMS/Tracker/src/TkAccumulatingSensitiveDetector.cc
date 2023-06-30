@@ -151,17 +151,21 @@ void TkAccumulatingSensitiveDetector::update(const BeginOfTrack* bot) {
     //
     TrackInformation* info = nullptr;
     if (gTrack->GetKineticEnergy() > energyCut) {
-      info = cmsTrackInformation(gTrack);
-      info->storeTrack(true);
+      info = optionalCmsTrackInformation(gTrack);
+      if (info) {
+        info->setStoreTrack();
+      }
     }
     //
     // Save History?
     //
     if (gTrack->GetKineticEnergy() > energyHistoryCut) {
       if (!info) {
-        info = cmsTrackInformation(gTrack);
+        info = optionalCmsTrackInformation(gTrack);
       }
-      info->putInHistory();
+      if (info) {
+        info->putInHistory();
+      }
       LogDebug("TrackerSimDebug") << " Track inside the tracker selected for HISTORY"
                                   << " Track ID= " << gTrack->GetTrackID();
     }
@@ -240,8 +244,7 @@ void TkAccumulatingSensitiveDetector::createHit(const G4Step* aStep) {
   // otherwise, get to the mother
   unsigned int theTrackIDInsideTheSimHit = theTrackID;
 
-  const TrackInformation* temp = cmsTrackInformation(theTrack);
-  if (!temp->storeTrack()) {
+  if (const TrackInformation* temp = optionalCmsTrackInformation(theTrack); temp && !temp->storeTrack()) {
     // Go to the mother!
     theTrackIDInsideTheSimHit = theTrack->GetParentID();
     LogDebug("TrackerSimDebug") << " TkAccumulatingSensitiveDetector::createHit(): setting the TrackID from "

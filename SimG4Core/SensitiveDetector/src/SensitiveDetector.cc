@@ -88,8 +88,13 @@ Local3DPoint SensitiveDetector::LocalPostStepPosition(const G4Step* step) const 
   return ConvertToLocal3DPoint(localCoordinates);
 }
 
-TrackInformation* SensitiveDetector::cmsTrackInformation(const G4Track* aTrack) {
+TrackInformation* SensitiveDetector::optionalCmsTrackInformation(const G4Track* aTrack) {
   TrackInformation* info = (TrackInformation*)(aTrack->GetUserInformation());
+  return info;
+}
+
+TrackInformation* SensitiveDetector::cmsTrackInformation(const G4Track* aTrack) {
+  TrackInformation* info = optionalCmsTrackInformation(aTrack);
   if (nullptr == info) {
     edm::LogWarning("SensitiveDetector") << " no TrackInformation available for trackID= " << aTrack->GetTrackID()
                                          << " inside SD " << GetName();

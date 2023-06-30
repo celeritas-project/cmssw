@@ -50,6 +50,7 @@ protected:
   void setNames(const std::vector<std::string>&);
   void NaNTrap(const G4Step* step) const;
 
+  TrackInformation* optionalCmsTrackInformation(const G4Track* aTrack);
   TrackInformation* cmsTrackInformation(const G4Track* aTrack);
 
 private:

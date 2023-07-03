@@ -174,7 +174,7 @@ G4bool CaloSD::ProcessHits(G4Step* aStep, G4TouchableHistory*) {
 
   // apply shower library or parameterisation
   // independent on energy deposition at a step
-  if (isParameterized && !useCeleritas) {
+  if (isParameterized) {
     if (getFromLibrary(aStep)) {
       // for parameterized showers the primary track should be killed
       // secondary tracks should be killed if they are in the same volume

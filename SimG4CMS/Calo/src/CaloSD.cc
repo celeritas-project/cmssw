@@ -47,6 +47,7 @@ CaloSD::CaloSD(const std::string& name,
       timeSlice(timeSliceUnit),
       eminHitD(0.) {
   //Parameters
+  useCeleritas = p.getUntrackedParameter<bool>("CeleritasOffloading");
   bool dd4hep = p.getParameter<bool>("g4GeometryDD4hepSource");
   int addlevel = dd4hep ? 1 : 0;
   edm::ParameterSet m_CaloSD = p.getParameter<edm::ParameterSet>("CaloSD");
@@ -173,7 +174,7 @@ G4bool CaloSD::ProcessHits(G4Step* aStep, G4TouchableHistory*) {
 
   // apply shower library or parameterisation
   // independent on energy deposition at a step
-  if (isParameterized) {
+  if (isParameterized && !useCeleritas) {
     if (getFromLibrary(aStep)) {
       // for parameterized showers the primary track should be killed
       // secondary tracks should be killed if they are in the same volume
@@ -874,7 +875,7 @@ double CaloSD::getResponseWt(const G4Track* aTrack) {
 }
 
 void CaloSD::storeHit(CaloG4Hit* hit) {
-  if (hit == nullptr || previousID.trackID() < 0) {
+  if ((hit == nullptr || previousID.trackID() < 0) && !useCeleritas) {
     edm::LogWarning("CaloSim") << "CaloSD: hit to be stored is nullptr !!"
                                << " previousID.trackID()= " << previousID.trackID();
     return;

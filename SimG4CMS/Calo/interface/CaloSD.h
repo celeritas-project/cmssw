@@ -165,6 +165,7 @@ private:
 
   CaloG4HitCollection* theHC;
 
+  bool useCeleritas;
   bool ignoreTrackID;
   bool isParameterized;
   bool ignoreReject;

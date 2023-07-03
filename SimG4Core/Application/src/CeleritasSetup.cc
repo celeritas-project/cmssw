@@ -159,4 +159,24 @@ void CeleritasSetup::SetIgnoreProcesses(SetupOptions::VecString ignored)
 CeleritasSetup::~CeleritasSetup() = default;
 
 //---------------------------------------------------------------------------//
+/*!
+ * Set the list of logical volumes with sensitive detectors.
+ */
+void CeleritasSetup::SetSDFromMaster(std::string filename)
+{
+    CELER_VALIDATE(std::ifstream(filename).good(),
+                   << "Failed to open input file " << filename);
+
+    std::ifstream input(filename);
+    std::string line;
+    std::unordered_set<std::string> vol_names;
+
+    while (std::getline(input, line))
+    {
+        vol_names.insert(std::move(line));
+    }
+    options_->sd.force_volumes = celeritas::FindVolumes(vol_names);
+}
+
+//---------------------------------------------------------------------------//
 }  // namespace celeritas

@@ -303,8 +303,9 @@ void RunManagerMT::initG4(const DDCompactView* pDD,
   //@@@--->celeritas
   celeritas::CeleritasSetup::Instance()->SetMagFieldZTesla(3.8);
 
-  //Manually set SD to logical volumes
-  celeritas::CeleritasSetup::Instance()->SetSDFromMaster();
+  //Manually set SD to logical volumes from a known list
+  auto sdFile = m_p.getUntrackedParameter<std::string>("CeleritasSDFile", "");
+  celeritas::CeleritasSetup::Instance()->SetSDFromMaster(sdFile);
 
   // Initialize shared data and setup GPU on all threads
   celeritas::ExceptionConverter call_g4exception{"celer0001"};

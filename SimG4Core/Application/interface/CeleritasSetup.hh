@@ -56,22 +56,7 @@ class CeleritasSetup
     }
 
     //! Set sensitive detectors manually with a known list
-    void SetSDFromMaster()
-    {
-        options_->sd.force_volumes = celeritas::FindVolumes([] {
-	    // TODO: read input file name from configuration
-	    std::ifstream input("calor-sd-ecal.list");
-	    std::string line;
-	    std::unordered_set<std::string> vol_names;
-
-	    while (std::getline(input, line))
-	    {
-	        vol_names.insert(std::move(line));
-	    }
-
-	    return vol_names;
-	}());
-    }
+    void SetSDFromMaster(std::string filename);
 
   private:
     // Private constructor since we're a singleton

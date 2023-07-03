@@ -112,6 +112,11 @@ g4SimHits = cms.EDProducer("OscarMTProducer",
         LVname = cms.string(''),
         NodeNames = cms.vstring('World')
     ),
+    # @@@--->celeriatas configuration
+    CeleritasOffloading = cms.untracked.bool(True),
+    CeleritasOutputFile = cms.untracked.string(''),
+    CeleritasSDFile = cms.untracked.string(''),
+    # @@@<---celeriatas
     G4Commands = cms.vstring(),
     G4CommandsEndRun = cms.vstring(),
     SteppingVerbosity = cms.untracked.int32(0),

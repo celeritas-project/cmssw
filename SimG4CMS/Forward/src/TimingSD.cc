@@ -154,7 +154,7 @@ void TimingSD::getStepInfo(const G4Step* aStep) {
     if (incidentEnergy > energyCut) {
       info = optionalCmsTrackInformation(theTrack);
       if (info) {
-        info->setStoreTrack();
+        info->storeTrack(true);
       }
     }
     if (incidentEnergy > energyHistoryCut) {

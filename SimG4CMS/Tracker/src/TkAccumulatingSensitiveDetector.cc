@@ -153,7 +153,7 @@ void TkAccumulatingSensitiveDetector::update(const BeginOfTrack* bot) {
     if (gTrack->GetKineticEnergy() > energyCut) {
       info = optionalCmsTrackInformation(gTrack);
       if (info) {
-        info->setStoreTrack();
+        info->storeTrack(true);
       }
     }
     //
